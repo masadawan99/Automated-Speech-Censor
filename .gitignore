@@ -1,0 +1,33 @@
+# Python & Virtual Environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Streamlit secrets (never commit tokens!)
+.streamlit/secrets.toml
+
+# Local downloaded/trained model weights (stored on private HF Hub)
+models/
+*.pkl
+*.onnx
+*.onnx.data
+
+# Large generated or downloaded datasets & recordings
+data/e2e_tts/
+data/jigsaw/
+data/e2e_real/*.wav
+data/e2e_real/*.mp3
+data/e2e_real/*.m4a
+data/e2e_real/*.aac
+data/e2e_real/*.mp4
+data/e2e_real/*.webm
+data/e2e_real/*.ogg
+data/e2e_real/*.flac
+
+# Notebooks & OS artifacts
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db

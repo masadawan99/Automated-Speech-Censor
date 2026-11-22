@@ -44,12 +44,12 @@ The instructor's reference example is an Emotion Prediction System: TF-IDF featu
 | FR-3 | Maximum input length is capped (target about 2 minutes) with a clear error beyond that |
 | FR-4 | The system transcribes the audio with word-level timestamps |
 | FR-5 | The system decides, per word, whether it is profane and assigns a confidence score |
-| FR-6 | Every word judged profane is replaced by a 1 kHz sine beep covering the word span with ~100 ms padding each side and 5 ms fades |
+| FR-6 | Every word judged profane is replaced by a 1 kHz sine beep covering the word span with ~100 ms padding each side and 5 ms fades. Words in the unambiguous tier are always beeped; context-dependent words are beeped when confidence ≥ threshold |
 | FR-7 | The user can play the cleaned audio in the page and download it as WAV |
 | FR-8 | The page shows the transcript with beeped words highlighted and each flagged word's confidence |
-| FR-9 | A sensitivity threshold slider (0–1, default 0.5) re-applies the beep decision on the already-computed transcript and scores without re-transcribing |
+| FR-9 | A sensitivity threshold slider (0–1, default = the validation-tuned threshold of the deployed detector, saved with the model; 0.5 only if unavailable) re-applies the beep decision to context-dependent candidate words on the already-computed transcript and scores without re-transcribing. Unambiguous profanity is always beeped; non-candidate words are never beeped |
 | FR-10 | The page reports processing time and the number of words censored |
-| FR-11 | Uploaded/generated files live only in the app's temp cache and are auto-deleted (Gradio `delete_cache`, ≤10 min); the page states this |
+| FR-11 | Uploaded/recorded audio is never stored persistently; any temp files created during decoding are deleted immediately in a `finally:` block, and the page states this |
 
 ### Roadmap (describe, do not necessarily build)
 
@@ -85,7 +85,7 @@ Live/chunked mode using a delay buffer; manual review screen (un-beep / add word
 - Report accuracy (required by the instructor), plus precision, recall and F1. The dataset is imbalanced, so accuracy alone is not sufficient.
 - **Recall is prioritised over precision:** a missed profanity is worse than a false beep. The report must say so.
 - **ASR evaluation:** word error rate and real-time factor (processing time divided by audio duration) for each ASR candidate.
-- **End-to-end audio evaluation:** a test set of roughly 100 to 150 clips, mostly TTS-generated with known text and timings, plus 20 to 30 real recordings (the developer and friends) with profane words labelled by hand. Metrics: word-level beep precision, recall and F1, timing error of beep boundaries, and real-time factor.
+- **End-to-end audio evaluation:** a test set of roughly 100 to 150 clips, mostly TTS-generated with known text and timings, plus 20 to 30 real recordings (the developer and friends) with profane words labelled by hand (minimum 20, not cut). Metrics: word-level beep precision, recall and F1, timing error of beep boundaries, and real-time factor.
 - The report must state that synthetic audio is cleaner than real speech and discuss the gap.
 
 ## 7. Non-functional requirements
@@ -94,7 +94,7 @@ Live/chunked mode using a delay buffer; manual review screen (un-beep / add word
 | --- | --- |
 | NFR-1 | Runs on CPU only in deployment (no GPU available) |
 | NFR-2 | A 1-minute clip should be processed in a time suitable for a live demo (target under about 30 s; to be measured and reported) |
-| NFR-3 | Free-tier hosting; no payment card should be required. Hugging Face Spaces is the leading candidate; the architect may propose alternatives |
+| NFR-3 | Free-tier hosting; no payment card should be required. Streamlit Community Cloud (`share.streamlit.io`, 1 free private GitHub repo slot with public app URL) is selected because HF Spaces `cpu-basic`/ZeroGPU are gated for brand-new free accounts |
 | NFR-4 | A fallback demo path must exist (for example running locally behind a tunnel) in case the free host sleeps, is slow or the venue network fails |
 | NFR-5 | Works on desktop and mobile browsers, including microphone permission handling |
 | NFR-6 | Model artefacts are loaded once at startup, not per request |
@@ -132,7 +132,8 @@ Live/chunked mode using a delay buffer; manual review screen (un-beep / add word
 
 - **Team:** Solo developer.
 - **Dataset:** Jigsaw Toxic Comment Classification Challenge (`obscene` label, binary classification) via Kaggle competition dataset (fallback: Hugging Face mirror `thesofakillers/jigsaw-toxic-comment-classification-challenge`).
-- **Lexicon:** LDNOOBW English bad-word list (`en`, single words) + hand-curated spoken variants/inflections, organised into two tiers (Tier A unambiguous, Tier B context-dependent).
-- **ASR:** `faster-whisper` (`Systran/faster-whisper-tiny.en`, `base.en`, `small.en` compared on WER and RTF; best trade-off selected).
-- **Hosting:** Hugging Face Spaces (Gradio SDK, free CPU basic tier, no payment card required).
+- **Lexicon:** LDNOOBW English bad-word list (`en`, cleaned single words) + hand-curated spoken variants/inflections, organised into two tiers: Tier A unambiguous profanity (plus any ASR `*`-masked token, assigned high confidence directly without invoking the context classifier) and Tier B context-dependent profanity (`ass`, `dick`, `bitch`, `cock`, etc., disambiguated via the context classifier). Mild intensifiers (`hell`, `damn`, `crap`) are intentionally excluded and left uncensored. Tier A words are always beeped regardless of the slider; the slider controls Tier B only.
+- **Default threshold:** tuned on validation data (F2, recall-weighted) and shipped in `detector_config.json`.
+- **ASR:** `faster-whisper` (`Systran/faster-whisper-tiny.en`, `base.en`, `small.en` compared on WER, RTF, peak RAM, and profanity recall; best trade-off within Streamlit Cloud RAM and latency limits selected).
+- **Hosting:** Streamlit Community Cloud (`share.streamlit.io`, built-in HTTPS, 1 free private GitHub repo slot with app visibility set to **Public** so anyone with the URL can test it without login). Trained model weights (`distilbert_int8.onnx` and classical `.pkl` fallback) are stored in a **private Hugging Face Hub model repo** and loaded at startup via `st.secrets["HF_TOKEN"]` with zero PyTorch dependency in deployment. Local fallback (NFR-4): `streamlit run app.py` behind a `cloudflared` HTTPS quick tunnel.
 - **Slides:** Prepared by the developer at the end (following the `ppt_Semester Project.pptx` structure; Course Feedback left for the developer).
