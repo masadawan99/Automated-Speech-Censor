@@ -29,6 +29,7 @@
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Must be set before importing torch
 
+import inspect
 import json
 from pathlib import Path
 import shutil
@@ -97,6 +98,35 @@ HF_TOKEN_WRITE = get_secret("HF_TOKEN_kaggle") or get_secret("HF_TOKEN")
 OUT_DIR = Path("artifacts_nb02")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 print(f"Configured HF_REPO_ID set={bool(HF_REPO_ID)} | HF_TOKEN_kaggle set={bool(HF_TOKEN_WRITE)}")
+
+
+def _ensure_onnx_deps() -> None:
+    missing = []
+    for pkg in ("onnx", "onnxscript", "onnxruntime"):
+        try:
+            __import__(pkg)
+        except ImportError:
+            missing.append(pkg)
+    if missing:
+        print("Installing missing ONNX dependencies:", missing)
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", *missing])
+
+
+_ensure_onnx_deps()
+import onnx  # noqa: F401
+import onnxscript  # noqa: F401
+import onnxruntime as ort
+
+print(f"ONNX deps OK: onnx={onnx.__version__} | onnxruntime={ort.__version__}")
+
+if HF_TOKEN_WRITE and HF_REPO_ID and "YOUR_HF_USER" not in HF_REPO_ID:
+    from huggingface_hub import HfApi
+
+    _preflight_api = HfApi(token=HF_TOKEN_WRITE)
+    _who = _preflight_api.whoami()
+    _tok_name = _who.get("auth", {}).get("accessToken", {}).get("displayName", "unknown")
+    _preflight_api.repo_info(repo_id=HF_REPO_ID, repo_type="model")
+    print(f"HF preflight OK: user={_who.get('name')} | token={_tok_name} | repo={HF_REPO_ID}")
 
 # %% [markdown]
 # ## 1. Load Jigsaw Dataset (Kaggle Input or Automatic HF Mirror) & 90/10 Stratified Split
@@ -299,25 +329,20 @@ display(pd.DataFrame(transformer_rows))
 # ## 5. Export ONNX FP32 -> Quantize INT8 -> Parity Check & 15-Sentence Tier B Sanity Probe
 
 # %%
-try:
-    import onnx  # noqa: F401
-    import onnxruntime as ort
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "onnx", "onnxruntime"])
-    import onnxruntime as ort
-
+_ensure_onnx_deps()
+import onnxruntime as ort
 from onnxruntime.quantization import QuantType, quantize_dynamic
 from tokenizers import Tokenizer
 
-model_cpu = model.to("cpu").eval()
+model_cpu = AutoModelForSequenceClassification.from_pretrained(
+    SAVE_PT_DIR,
+    attn_implementation="eager",
+).to("cpu").eval()
 dummy_enc = tokenizer("test sentence for export", return_tensors="pt", padding="max_length", max_length=MAX_LEN)
 fp32_onnx = OUT_DIR / "distilbert_fp32.onnx"
 int8_onnx = OUT_DIR / "distilbert_int8.onnx"
 
-torch.onnx.export(
-    model_cpu,
-    (dummy_enc["input_ids"], dummy_enc["attention_mask"]),
-    str(fp32_onnx),
+export_kwargs = dict(
     input_names=["input_ids", "attention_mask"],
     output_names=["logits"],
     dynamic_axes={
@@ -326,14 +351,37 @@ torch.onnx.export(
         "logits": {0: "batch"},
     },
     opset_version=14,
+    do_constant_folding=True,
+)
+if "dynamo" in inspect.signature(torch.onnx.export).parameters:
+    export_kwargs["dynamo"] = False
+
+torch.onnx.export(
+    model_cpu,
+    (dummy_enc["input_ids"], dummy_enc["attention_mask"]),
+    str(fp32_onnx),
+    **export_kwargs,
 )
 
-quantize_dynamic(
-    model_input=str(fp32_onnx),
-    model_output=str(int8_onnx),
-    weight_type=QuantType.QInt8,
-)
-print(f"FP32 ONNX size: {fp32_onnx.stat().st_size / 1e6:.1f} MB | INT8 ONNX size: {int8_onnx.stat().st_size / 1e6:.1f} MB")
+try:
+    quantize_dynamic(
+        model_input=str(fp32_onnx),
+        model_output=str(int8_onnx),
+        weight_type=QuantType.QInt8,
+    )
+except Exception as exc:
+    print(f"Default quantize_dynamic failed ({exc}); retrying with MatMul/Gemm only...")
+    quantize_dynamic(
+        model_input=str(fp32_onnx),
+        model_output=str(int8_onnx),
+        weight_type=QuantType.QInt8,
+        op_types_to_quantize=["MatMul", "Gemm"],
+    )
+
+int8_mb = int8_onnx.stat().st_size / 1e6
+print(f"FP32 ONNX size: {fp32_onnx.stat().st_size / 1e6:.1f} MB | INT8 ONNX size: {int8_mb:.1f} MB")
+assert int8_mb > 20.0, f"Unexpectedly small ONNX file ({int8_mb:.1f} MB); check for external data sidecar!"
+assert not Path(f"{int8_onnx}.data").exists(), "External .onnx.data file detected; single-file ONNX required!"
 
 fast_tok = Tokenizer.from_file(str(SAVE_PT_DIR / "tokenizer.json"))
 fast_tok.enable_truncation(max_length=MAX_LEN)

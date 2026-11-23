@@ -99,6 +99,15 @@ OUT_DIR = Path("artifacts_nb01")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 print(f"Configured HF_REPO_ID set={bool(HF_REPO_ID)} | HF_TOKEN_kaggle set={bool(HF_TOKEN_WRITE)}")
 
+if HF_TOKEN_WRITE and HF_REPO_ID and "YOUR_HF_USER" not in HF_REPO_ID:
+    from huggingface_hub import HfApi
+
+    _preflight_api = HfApi(token=HF_TOKEN_WRITE)
+    _who = _preflight_api.whoami()
+    _tok_name = _who.get("auth", {}).get("accessToken", {}).get("displayName", "unknown")
+    _preflight_api.repo_info(repo_id=HF_REPO_ID, repo_type="model")
+    print(f"HF preflight OK: user={_who.get('name')} | token={_tok_name} | repo={HF_REPO_ID}")
+
 # %% [markdown]
 # ## 1. Load Jigsaw Dataset (Kaggle Input or Automatic Hugging Face Mirror)
 #
