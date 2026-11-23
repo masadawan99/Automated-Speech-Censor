@@ -34,3 +34,4 @@ data/e2e_real/*.flac
 .DS_Store
 Thumbs.db
 download*.txt
+notebook*.zip
