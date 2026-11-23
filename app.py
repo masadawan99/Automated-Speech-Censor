@@ -161,7 +161,7 @@ def main() -> None:
             step=0.01,
             key="threshold",
             help=(
-                "Controls context-dependent (Tier B) words such as 'ass', 'dick', 'bitch', 'cock'. "
+                "Controls context-dependent (Tier B) words such as 'prick', 'balls', 'hoe', 'tramp', 'boob', 'sod'. "
                 "Lower = stricter (more beeps). Tier A unambiguous profanity is always beeped; "
                 "mild words ('hell', 'damn', 'crap') and clean words are never beeped."
             ),

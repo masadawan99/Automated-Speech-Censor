@@ -25,6 +25,7 @@ import gc
 import io
 import json
 from pathlib import Path
+import sys
 import time
 
 try:
@@ -40,11 +41,13 @@ import pandas as pd
 import psutil
 import soundfile as sf
 
+REPO_ROOT = Path("..").resolve() if Path("../censor").exists() else Path(".").resolve()
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 MODEL_SIZES = ["tiny.en", "base.en", "small.en"]
 N_LIBRISPEECH = 200
-TTS_MANIFEST = Path("../data/e2e_tts/manifest.json")
-if not TTS_MANIFEST.exists():
-    TTS_MANIFEST = Path("data/e2e_tts/manifest.json")
+TTS_MANIFEST = REPO_ROOT / "data" / "e2e_tts" / "manifest.json"
 
 # %% [markdown]
 # ## 1. Stream 200 LibriSpeech `test-clean` Utterances (Windows-Safe `Audio(decode=False)`)
@@ -124,7 +127,7 @@ for size in MODEL_SIZES:
                     prof_hits += 1
 
     prof_recall = (prof_hits / prof_total) if prof_total > 0 else np.nan
-    asr_rows.append({
+    row = {
         "ASR_Model": f"faster-whisper-{size} (int8)",
         "WER": round(wer, 4),
         "RTF": round(rtf, 4),
@@ -132,10 +135,17 @@ for size in MODEL_SIZES:
         "Peak_RSS_MB": round(peak_rss_mb, 1),
         "Delta_RSS_MB": round(peak_rss_mb - rss_before_mb, 1),
         "Profanity_Word_Recall": round(prof_recall, 4) if not np.isnan(prof_recall) else None,
-    })
+    }
+    asr_rows.append(row)
+    print(
+        f"[{size}] WER={row['WER']} | RTF={row['RTF']} | 1min={row['Est_1min_Time_s']}s | "
+        f"PeakRSS={row['Peak_RSS_MB']} MB | ProfRecall={row['Profanity_Word_Recall']}"
+    )
     del model
     gc.collect()
 
 asr_df = pd.DataFrame(asr_rows)
 display(asr_df)
-asr_df.to_csv("nb03_asr_benchmark.csv", index=False)
+out_csv = REPO_ROOT / "data" / "nb03_asr_benchmark.csv"
+out_csv.parent.mkdir(parents=True, exist_ok=True)
+asr_df.to_csv(out_csv, index=False)

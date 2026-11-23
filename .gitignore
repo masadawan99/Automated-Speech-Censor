@@ -33,3 +33,4 @@ data/e2e_real/*.flac
 .ipynb_checkpoints/
 .DS_Store
 Thumbs.db
+download*.txt

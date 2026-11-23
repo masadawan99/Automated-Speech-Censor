@@ -1,0 +1,4 @@
+ASR_Model,WER,RTF,Est_1min_Time_s,Peak_RSS_MB,Delta_RSS_MB,Profanity_Word_Recall
+faster-whisper-tiny.en (int8),0.0568,0.1089,6.53,500.5,50.8,0.8769
+faster-whisper-base.en (int8),0.0575,0.2522,15.13,577.2,151.8,0.9385
+faster-whisper-small.en (int8),0.0357,0.7568,45.41,770.8,333.2,0.9385

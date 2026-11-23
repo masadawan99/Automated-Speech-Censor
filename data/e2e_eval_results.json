@@ -1,0 +1,157 @@
+{
+  "asr_model": "faster-whisper-base.en",
+  "detector": "distilbert-base-uncased-jigsaw-obscene-int8",
+  "detector_backend": "onnx_int8",
+  "threshold": 0.17,
+  "tts": {
+    "n_clips": 120,
+    "threshold": 0.17,
+    "overall": {
+      "tp": 49,
+      "fp": 2,
+      "fn": 16,
+      "precision": 0.9608,
+      "recall": 0.7538,
+      "f1": 0.8448,
+      "f2": 0.7878
+    },
+    "tier_b_recall": 0.3,
+    "tier_b_tp": 6,
+    "tier_b_fn": 14,
+    "mean_boundary_error_ms": 125.71,
+    "median_boundary_error_ms": 122.5,
+    "mean_rtf": 0.472,
+    "failures": [
+      {
+        "clip_id": "tts_018_tier_a_profane",
+        "category": "tier_a_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "douchebag",
+        "text": "Stop being a douchebag to your coworkers."
+      },
+      {
+        "clip_id": "tts_032_tier_a_profane",
+        "category": "tier_a_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "apeshit",
+        "text": "Don't give me that apeshit excuse again."
+      },
+      {
+        "clip_id": "tts_047_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "prick",
+        "text": "Stop being a spineless prick to your friends."
+      },
+      {
+        "clip_id": "tts_048_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "prick",
+        "text": "That prick refused to pay his share."
+      },
+      {
+        "clip_id": "tts_049_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "prick",
+        "text": "She told that prick to get lost."
+      },
+      {
+        "clip_id": "tts_050_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "pricks",
+        "text": "Those pricks blocked the entire driveway."
+      },
+      {
+        "clip_id": "tts_052_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "pricks",
+        "text": "Why did those pricks delete our database?"
+      },
+      {
+        "clip_id": "tts_055_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "hoe",
+        "text": "She yelled shut up you cheap hoe."
+      },
+      {
+        "clip_id": "tts_057_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "hoes",
+        "text": "Tell those loud hoes to get out of the lobby."
+      },
+      {
+        "clip_id": "tts_058_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "hoes",
+        "text": "He keeps bragging about chasing hoes every weekend."
+      },
+      {
+        "clip_id": "tts_059_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "tramp",
+        "text": "Quit acting like a shameless tramp at the bar."
+      },
+      {
+        "clip_id": "tts_061_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "sod",
+        "text": "Get lost you miserable sod."
+      },
+      {
+        "clip_id": "tts_062_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "sod",
+        "text": "Look at that lazy sod sleeping on the couch."
+      },
+      {
+        "clip_id": "tts_063_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "boob",
+        "text": "He acted like an ignorant boob on live television."
+      },
+      {
+        "clip_id": "tts_064_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "boob",
+        "text": "Stop staring like a foolish boob during the meeting."
+      },
+      {
+        "clip_id": "tts_065_tier_b_profane",
+        "category": "tier_b_profane",
+        "type": "FN_MISSED_PROFANITY",
+        "word": "tit",
+        "text": "She flipped out and called him a pathetic tit."
+      },
+      {
+        "clip_id": "tts_076_tier_b_tricky_clean",
+        "category": "tier_b_tricky_clean",
+        "type": "FP_FALSE_BEEP",
+        "word": "pussy",
+        "text": "My cat pussyfooting around the kitchen was adorable."
+      },
+      {
+        "clip_id": "tts_088_tier_b_tricky_clean",
+        "category": "tier_b_tricky_clean",
+        "type": "FP_FALSE_BEEP",
+        "word": "cock",
+        "text": "The shuttlecock flew high over the badminton net."
+      }
+    ]
+  },
+  "real": {
+    "n_clips": 0,
+    "note": "No labeled real recordings yet in data/e2e_real/labels.csv"
+  }
+}
