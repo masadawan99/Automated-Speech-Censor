@@ -6,8 +6,16 @@ import argparse
 from collections import Counter
 import csv
 import json
+import os
 from pathlib import Path
 import time
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
 
 import numpy as np
 
@@ -225,13 +233,24 @@ def evaluate_real(
 
 
 def main() -> None:
+    default_repo = os.environ.get("HF_REPO_ID", "").strip()
+    default_user = os.environ.get("HF_USER", "").strip()
+    if default_repo and "/" not in default_repo and default_user:
+        default_repo = f"{default_user}/{default_repo}"
+    default_token = (
+        os.environ.get("HF_TOKEN_streamlitt")
+        or os.environ.get("HF_TOKEN")
+        or os.environ.get("HF_TOKEN_kaggle")
+        or ""
+    ).strip()
+
     parser = argparse.ArgumentParser(description="Run end-to-end audio evaluation.")
     parser.add_argument("--asr-size", default="base.en")
     parser.add_argument("--tts-dir", type=Path, default=Path("data/e2e_tts"))
     parser.add_argument("--real-dir", type=Path, default=Path("data/e2e_real"))
     parser.add_argument("--models-dir", type=Path, default=Path("models"))
-    parser.add_argument("--hf-repo-id", default="")
-    parser.add_argument("--hf-token", default="")
+    parser.add_argument("--hf-repo-id", default=default_repo)
+    parser.add_argument("--hf-token", default=default_token)
     parser.add_argument("--out-json", type=Path, default=Path("data/e2e_eval_results.json"))
     args = parser.parse_args()
 

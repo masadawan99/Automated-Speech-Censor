@@ -6,6 +6,13 @@ import hashlib
 import os
 import time
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 import pandas as pd
 import streamlit as st
 
@@ -131,8 +138,11 @@ def main() -> None:
     )
 
     asr_size = get_config_value("ASR_MODEL_SIZE", "base.en")
+    hf_user = get_config_value("HF_USER", "")
     hf_repo_id = get_config_value("HF_REPO_ID", "")
-    hf_token = get_config_value("HF_TOKEN", "")
+    if hf_repo_id and "/" not in hf_repo_id and hf_user:
+        hf_repo_id = f"{hf_user}/{hf_repo_id}"
+    hf_token = get_config_value("HF_TOKEN", "") or get_config_value("HF_TOKEN_streamlitt", "")
     preferred_backend = get_config_value("DETECTOR_BACKEND", "auto")
 
     lexicon = get_lexicon()

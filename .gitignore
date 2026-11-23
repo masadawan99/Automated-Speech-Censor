@@ -6,8 +6,10 @@ __pycache__/
 *$py.class
 .pytest_cache/
 
-# Streamlit secrets (never commit tokens!)
+# Streamlit secrets & local environment files (never commit tokens!)
 .streamlit/secrets.toml
+.env
+.env.*
 
 # Local downloaded/trained model weights (stored on private HF Hub)
 models/

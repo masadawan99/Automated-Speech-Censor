@@ -172,8 +172,9 @@ def _read_detector_config(
     local_dir: Path | None,
     hf_repo_id: str | None,
     hf_token: str | None,
+    filename: str = "detector_config.json",
 ) -> dict[str, Any]:
-    cfg_path = _resolve_artifact("detector_config.json", local_dir, hf_repo_id, hf_token)
+    cfg_path = _resolve_artifact(filename, local_dir, hf_repo_id, hf_token)
     if cfg_path is None:
         return {}
     try:
@@ -191,24 +192,26 @@ def load_detector(
     """Load the deployed context detector from local ``models/`` or private HF Hub.
 
     Preference order for ``preferred_backend="auto"``:
-      1. ONNX INT8 DistilBERT (``distilbert_int8.onnx`` + ``tokenizer.json``)
-      2. Classical TF-IDF pipeline (``best_classical_pipeline.pkl``)
+      1. ONNX INT8 DistilBERT (``distilbert_int8.onnx`` + ``tokenizer.json``,
+         configured via ``onnx_detector_config.json`` with fallback to ``detector_config.json``)
+      2. Classical TF-IDF pipeline (``best_classical_pipeline.pkl``,
+         configured via ``detector_config.json``)
       3. ``LexiconOnlyDetector`` (never crashes if weights are not uploaded yet)
     """
     local_path = Path(local_dir) if local_dir else None
-    cfg = _read_detector_config(local_path, hf_repo_id, hf_token)
-    threshold = float(cfg.get("threshold", 0.5))
-    model_name = str(cfg.get("model", ""))
+    classical_cfg = _read_detector_config(local_path, hf_repo_id, hf_token, "detector_config.json")
 
     if preferred_backend in ("auto", "onnx"):
         onnx_path = _resolve_artifact("distilbert_int8.onnx", local_path, hf_repo_id, hf_token)
         tok_path = _resolve_artifact("tokenizer.json", local_path, hf_repo_id, hf_token)
         if onnx_path is not None and tok_path is not None:
+            onnx_cfg = _read_detector_config(local_path, hf_repo_id, hf_token, "onnx_detector_config.json")
+            cfg = onnx_cfg or classical_cfg
             return OnnxDistilBertDetector(
                 onnx_path=onnx_path,
                 tokenizer_path=tok_path,
-                threshold=threshold,
-                model_name=model_name or "distilbert-int8-onnx",
+                threshold=float(cfg.get("threshold", 0.5)),
+                model_name=str(cfg.get("model", "")) or "distilbert-int8-onnx",
             )
 
     if preferred_backend in ("auto", "classical", "sklearn"):
@@ -216,8 +219,8 @@ def load_detector(
         if pkl_path is not None:
             return SklearnTfidfDetector(
                 pipeline_path=pkl_path,
-                threshold=threshold,
-                model_name=model_name or "classical-tfidf",
+                threshold=float(classical_cfg.get("threshold", 0.5)),
+                model_name=str(classical_cfg.get("model", "")) or "classical-tfidf",
             )
 
-    return LexiconOnlyDetector(threshold=threshold)
+    return LexiconOnlyDetector(threshold=float(classical_cfg.get("threshold", 0.5)))

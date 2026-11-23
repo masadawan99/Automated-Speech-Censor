@@ -50,19 +50,25 @@ cloudflared tunnel --url http://localhost:8501
 
 ## Training & Evaluation Workflow
 
+> **Jupytext Rule:** All notebooks are authored in percent-format `.py` files under `notebooks/*.py`. Always edit the `.py` file first and regenerate `.ipynb` via:
+> ```powershell
+> .\.venv\Scripts\jupytext.exe --to ipynb notebooks\*.py
+> ```
+
 1. **Kaggle NB01 (`notebooks/01_classical_tfidf_10fold.ipynb`, CPU):**
-   - Attach `jigsaw-toxic-comment-classification-challenge`, enable Internet, add Kaggle Secret `HF_TOKEN` (Write), and set `HF_REPO_ID = "<HF_USER>/asc-models"`.
-   - Evaluates `DummyClassifier`, Lexicon-only (Tier A & Tier A+B), Variation 1 (unweighted) vs. Variation 2 (`class_weight='balanced'`) across 10-fold CV and official test set (`63,978` rows).
+   - Attach `jigsaw-toxic-comment-classification-challenge` (or leave unattached with Internet ON to auto-download from the Hugging Face mirror `thesofakillers/jigsaw-toxic-comment-classification-challenge`), enable Internet, and attach Kaggle Secrets `HF_REPO_ID`, `HF_USER`, and `HF_TOKEN_kaggle` (Write).
+   - Evaluates `DummyClassifier`, Lexicon-only (Tier A & Tier A+B), 10-fold CV Variation 1 (unweighted) vs. Variation 2 (`class_weight='balanced'`) and official test set (`63,978` rows).
    - Exports `tfidf_vectorizer.pkl`, `best_model.pkl`, `best_classical_pipeline.pkl`, and `detector_config.json` to Hugging Face Hub.
 2. **Kaggle NB02 (`notebooks/02_transformers.ipynb`, GPU T4 x2 with `CUDA_VISIBLE_DEVICES=0`):**
    - Evaluates `unitary/toxic-bert` (in-domain pre-trained), `cardiffnlp/twitter-roberta-base-offensive` (cross-domain zero-shot), and fine-tuned `distilbert/distilbert-base-uncased` (`2` epochs, `fp16`).
-   - Tunes `τ*` maximizing F2 on the 10% validation split, exports & quantizes `distilbert_int8.onnx` (~65 MB), checks FP32 vs. INT8 parity, and pushes `distilbert_int8.onnx`, `tokenizer.json`, and `detector_config.json` to Hugging Face Hub.
+   - Tunes `τ*` maximizing F2 on the 10% validation split, exports & quantizes `distilbert_int8.onnx` (~65 MB), checks FP32 vs. INT8 parity, and pushes `distilbert_int8.onnx`, `tokenizer.json`, and `onnx_detector_config.json` to Hugging Face Hub.
 3. **NB03 (`notebooks/03_asr_eval.ipynb`):** Compares `faster-whisper` `tiny.en`, `base.en`, `small.en` (`int8`, CPU) on 200 LibriSpeech `test-clean` clips (WER, RTF, peak RAM) and profanity recall.
 4. **TTS & Real-World E2E Eval (`scripts/gen_tts_testset.py`, `scripts/run_e2e_eval.py`, `notebooks/04_e2e_eval.ipynb`):**
    ```powershell
    python scripts/gen_tts_testset.py
-   python scripts/run_e2e_eval.py --hf-repo-id "<HF_USER>/asc-models" --hf-token "<READ_TOKEN>"
+   python scripts/run_e2e_eval.py
    ```
+   (`run_e2e_eval.py` and `app.py` automatically read `HF_REPO_ID`, `HF_USER`, and `HF_TOKEN_streamlitt` / `HF_TOKEN` from `.env` locally.)
 
 ---
 

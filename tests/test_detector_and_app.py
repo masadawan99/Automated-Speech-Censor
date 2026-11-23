@@ -108,3 +108,47 @@ def test_onnx_detector_softmax_and_mock_session(tmp_path: Path) -> None:
         assert probs[0] > 0.90 and probs[1] < 0.10
         assert det.threshold == 0.42
 
+
+def test_load_detector_reads_onnx_and_classical_configs_independently(tmp_path: Path) -> None:
+    texts = ["you are a dick", "machine learning class"]
+    labels = [1, 0]
+    pipe = Pipeline([("tfidf", TfidfVectorizer()), ("clf", LogisticRegression())])
+    pipe.fit(texts, labels)
+    joblib.dump(pipe, tmp_path / "best_classical_pipeline.pkl")
+    (tmp_path / "detector_config.json").write_text(
+        json.dumps({"model": "classical-lr", "threshold": 0.61}),
+        encoding="utf-8",
+    )
+
+    # Create dummy onnx + tokenizer files
+    (tmp_path / "distilbert_int8.onnx").write_bytes(b"onnx")
+    (tmp_path / "tokenizer.json").write_text("{}", encoding="utf-8")
+
+    mock_session = mock.MagicMock()
+    mock_session.get_inputs.return_value = []
+    mock_tok = mock.MagicMock()
+
+    with (
+        mock.patch("onnxruntime.InferenceSession", return_value=mock_session),
+        mock.patch("tokenizers.Tokenizer.from_file", return_value=mock_tok),
+    ):
+        # 1. Without onnx_detector_config.json, ONNX falls back to detector_config.json (0.61)
+        det_fallback = load_detector(local_dir=tmp_path, preferred_backend="onnx")
+        assert isinstance(det_fallback, OnnxDistilBertDetector)
+        assert abs(det_fallback.threshold - 0.61) < 1e-6
+
+        # 2. With onnx_detector_config.json present, ONNX uses 0.34 while classical still uses 0.61
+        (tmp_path / "onnx_detector_config.json").write_text(
+            json.dumps({"model": "distilbert-int8", "threshold": 0.34}),
+            encoding="utf-8",
+        )
+        det_onnx = load_detector(local_dir=tmp_path, preferred_backend="auto")
+        assert isinstance(det_onnx, OnnxDistilBertDetector)
+        assert abs(det_onnx.threshold - 0.34) < 1e-6
+        assert det_onnx.model_name == "distilbert-int8"
+
+        det_cls = load_detector(local_dir=tmp_path, preferred_backend="classical")
+        assert isinstance(det_cls, SklearnTfidfDetector)
+        assert abs(det_cls.threshold - 0.61) < 1e-6
+        assert det_cls.model_name == "classical-lr"
+
